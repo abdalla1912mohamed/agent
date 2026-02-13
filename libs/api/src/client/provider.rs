@@ -868,6 +868,9 @@ impl AgentClient {
                 stream_channel_tx: internal_tx,
                 provider_options: input.provider_options,
                 headers: input.headers,
+                parent_session_id: input.parent_session_id,
+                task_id: input.task_id,
+                telemetry_metadata: input.telemetry_metadata,
             };
 
             let stakai = self.stakai.clone();
@@ -963,6 +966,9 @@ impl AgentClient {
             tools: None,
             provider_options: None,
             headers: None,
+            parent_session_id: None,
+            task_id: None,
+            telemetry_metadata: None,
         };
 
         let response = self.stakai.chat(input).await.map_err(|e| e.to_string())?;

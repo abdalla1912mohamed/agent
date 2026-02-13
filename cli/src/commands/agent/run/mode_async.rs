@@ -28,6 +28,9 @@ pub struct RunAsyncConfig {
     pub prompt: String,
     pub checkpoint_id: Option<String>,
     pub session_id: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub task_id: Option<String>,
+    pub profile_name: Option<String>,
     pub local_context: Option<LocalContext>,
     pub verbose: bool,
     pub redact_secrets: bool,
@@ -238,6 +241,24 @@ pub async fn run_async(ctx: AppConfig, config: RunAsyncConfig) -> Result<AsyncOu
     let mut current_metadata: Option<serde_json::Value> = None;
     let mut prior_steps: usize = 0;
 
+    // Helper to inject parent_session_id into metadata
+    // Helper to inject subagent context (parent_session_id, task_id) into metadata
+    let inject_subagent_context = |metadata: &mut Option<serde_json::Value>, 
+                                    parent_sid: &Option<String>, 
+                                    task_id: &Option<String>| {
+        if parent_sid.is_some() || task_id.is_some() {
+            let meta = metadata.get_or_insert_with(|| serde_json::json!({}));
+            if let Some(obj) = meta.as_object_mut() {
+                if let Some(parent_sid) = parent_sid {
+                    obj.insert("parent_session_id".to_string(), serde_json::Value::String(parent_sid.clone()));
+                }
+                if let Some(task_id) = task_id {
+                    obj.insert("task_id".to_string(), serde_json::Value::String(task_id.clone()));
+                }
+            }
+        }
+    };
+
     // Load checkpoint/session messages if provided
     if let Some(session_id_str) = config.session_id {
         let checkpoint_start = Instant::now();
@@ -327,6 +348,7 @@ pub async fn run_async(ctx: AppConfig, config: RunAsyncConfig) -> Result<AsyncOu
                             None,
                             current_session_id,
                             Some(config.model.id.clone()),
+                            config.profile_name.clone(),
                         )
                         .await
                     };
@@ -430,6 +452,9 @@ pub async fn run_async(ctx: AppConfig, config: RunAsyncConfig) -> Result<AsyncOu
 
     let mut step = 0;
     let max_steps = config.max_steps.unwrap_or(50); // Safety limit to prevent infinite loops
+
+    // Inject subagent context (parent_session_id, task_id) into metadata for telemetry correlation
+    inject_subagent_context(&mut current_metadata, &config.parent_session_id, &config.task_id);
 
     print!("{}", renderer.render_info("Starting execution..."));
     print!("{}", renderer.render_section_break());
@@ -642,6 +667,7 @@ pub async fn run_async(ctx: AppConfig, config: RunAsyncConfig) -> Result<AsyncOu
                         None,
                         current_session_id,
                         Some(config.model.id.clone()),
+                        config.profile_name.clone(),
                     )
                     .await
                 };

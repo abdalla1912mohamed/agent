@@ -61,6 +61,13 @@ impl ToolContainer {
             .get("session_id")
             .and_then(|s| s.as_str().map(|s| s.to_string()))
     }
+
+    /// Get profile name from context for subagent inheritance
+    pub fn get_profile_name(&self, ctx: &RequestContext<RoleServer>) -> Option<String> {
+        ctx.meta
+            .get("profile_name")
+            .and_then(|s| s.as_str().map(|s| s.to_string()))
+    }
 }
 
 #[tool_handler]

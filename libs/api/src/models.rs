@@ -438,6 +438,14 @@ pub struct AgentState {
     /// Metadata for checkpoint persistence (context trimming state, etc.)
     /// Loaded from checkpoint on session resume and saved back after inference
     pub metadata: Option<Value>,
+
+    /// Parent session ID for subagent telemetry correlation
+    /// Set when this agent is a subagent spawned by another agent
+    pub parent_session_id: Option<String>,
+
+    /// Task ID for subagent telemetry correlation
+    /// Set when this agent is a subagent spawned by another agent
+    pub task_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -510,6 +518,19 @@ impl AgentState {
         tools: Option<Vec<Tool>>,
         metadata: Option<Value>,
     ) -> Self {
+        // Extract subagent context from metadata if present
+        let parent_session_id = metadata
+            .as_ref()
+            .and_then(|m| m.get("parent_session_id"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let task_id = metadata
+            .as_ref()
+            .and_then(|m| m.get("task_id"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
         Self {
             active_model,
             messages,
@@ -517,7 +538,14 @@ impl AgentState {
             metadata,
             llm_input: None,
             llm_output: None,
+            parent_session_id,
+            task_id,
         }
+    }
+
+    pub fn with_parent_session_id(mut self, parent_session_id: Option<String>) -> Self {
+        self.parent_session_id = parent_session_id;
+        self
     }
 
     pub fn set_messages(&mut self, messages: Vec<ChatMessage>) {

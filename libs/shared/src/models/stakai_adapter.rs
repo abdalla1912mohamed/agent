@@ -659,12 +659,25 @@ impl StakAIClient {
             .provider_options
             .as_ref()
             .and_then(|opts| to_stakai_provider_options(opts, &input.model));
+
+        // Build telemetry metadata from input + subagent context
+        let telemetry_metadata = {
+            let mut meta = input.telemetry_metadata.clone().unwrap_or_default();
+            if let Some(parent_sid) = &input.parent_session_id {
+                meta.insert("parent_session.id".to_string(), parent_sid.clone());
+            }
+            if let Some(task_id) = &input.task_id {
+                meta.insert("task.id".to_string(), task_id.clone());
+            }
+            if meta.is_empty() { None } else { Some(meta) }
+        };
+
         let request = GenerateRequest {
             model: input.model.clone(),
             messages,
             options,
             provider_options,
-            telemetry_metadata: None,
+            telemetry_metadata,
         };
 
         let response = self.inference.generate(&request).await.map_err(|e| {
@@ -703,13 +716,26 @@ impl StakAIClient {
             .provider_options
             .as_ref()
             .and_then(|opts| to_stakai_provider_options(opts, &input.model));
+
+        // Build telemetry metadata from input + subagent context
+        let telemetry_metadata = {
+            let mut meta = input.telemetry_metadata.clone().unwrap_or_default();
+            if let Some(parent_sid) = &input.parent_session_id {
+                meta.insert("parent_session.id".to_string(), parent_sid.clone());
+            }
+            if let Some(task_id) = &input.task_id {
+                meta.insert("task.id".to_string(), task_id.clone());
+            }
+            if meta.is_empty() { None } else { Some(meta) }
+        };
+
         let model_id = input.model.id.clone();
         let request = GenerateRequest {
             model: input.model.clone(),
             messages,
             options,
             provider_options,
-            telemetry_metadata: None,
+            telemetry_metadata,
         };
 
         let mut stream = self.inference.stream(&request).await.map_err(|e| {

@@ -60,6 +60,14 @@ struct Cli {
     #[arg(short = 's', long = "session", conflicts_with = "checkpoint_id")]
     session_id: Option<String>,
 
+    /// Parent session ID for subagent telemetry correlation (set automatically by master agent)
+    #[arg(long = "parent-session-id", hide = true)]
+    parent_session_id: Option<String>,
+
+    /// Task ID for subagent telemetry correlation (set automatically by master agent)
+    #[arg(long = "task-id", hide = true)]
+    task_id: Option<String>,
+
     /// Run the agent in a specific directory
     #[arg(short = 'w', long = "workdir")]
     workdir: Option<String>,
@@ -451,6 +459,9 @@ async fn async_main() {
                                 verbose: cli.verbose,
                                 checkpoint_id: checkpoint_id.clone(),
                                 session_id: session_id.clone(),
+                                parent_session_id: cli.parent_session_id.clone(),
+                                task_id: cli.task_id.clone(),
+                                profile_name: Some(profile_name.clone()),
                                 local_context,
                                 redact_secrets: !cli.disable_secret_redaction,
                                 privacy_mode: cli.privacy_mode,

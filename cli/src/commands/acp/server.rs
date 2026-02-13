@@ -59,6 +59,8 @@ pub struct StakpakAcpAgent {
     fs_operation_tx: Option<mpsc::UnboundedSender<crate::commands::acp::fs_handler::FsOperation>>,
     // Capabilities advertised by the client during initialization
     client_capabilities: Arc<tokio::sync::Mutex<acp::ClientCapabilities>>,
+    // Profile name for subagent inheritance
+    profile_name: Option<String>,
 }
 
 impl StakpakAcpAgent {
@@ -108,6 +110,7 @@ impl StakpakAcpAgent {
         config: AppConfig,
         session_update_tx: mpsc::UnboundedSender<(acp::SessionNotification, oneshot::Sender<()>)>,
         system_prompt: Option<String>,
+        profile_name: Option<String>,
     ) -> Result<Self, String> {
         // Create unified AgentClient
         let client: Arc<dyn AgentProvider> = {
@@ -219,6 +222,7 @@ impl StakpakAcpAgent {
             client_capabilities: Arc::new(tokio::sync::Mutex::new(
                 acp::ClientCapabilities::default(),
             )),
+            profile_name,
         })
     }
 
@@ -976,6 +980,7 @@ impl StakpakAcpAgent {
                     tool_cancel_rx,
                     self.current_session_id.get(),
                     Some(self.model.read().await.id.clone()),
+                    self.profile_name.clone(),
                 )
                 .await
                 .map_err(|e| {
@@ -1416,6 +1421,7 @@ impl StakpakAcpAgent {
                     streaming_buffer: self.streaming_buffer.clone(),
                     fs_operation_tx: Some(fs_operation_tx),
                     client_capabilities: self.client_capabilities.clone(),
+                    profile_name: self.profile_name.clone(),
                 };
 
                 // Start up the StakpakAcpAgent connected to stdio.
@@ -1544,6 +1550,7 @@ impl Clone for StakpakAcpAgent {
             streaming_buffer: self.streaming_buffer.clone(),
             fs_operation_tx: self.fs_operation_tx.clone(),
             client_capabilities: self.client_capabilities.clone(),
+            profile_name: self.profile_name.clone(),
         }
     }
 }

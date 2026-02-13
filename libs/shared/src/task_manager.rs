@@ -904,6 +904,54 @@ impl TaskManagerHandle {
         Ok(task_info)
     }
 
+    /// Start a task with a pre-generated task ID (for subagent telemetry correlation)
+    pub async fn start_task_with_id(
+        &self,
+        task_id: String,
+        command: String,
+        description: Option<String>,
+        timeout: Option<Duration>,
+        remote_connection: Option<RemoteConnectionInfo>,
+    ) -> Result<TaskInfo, TaskError> {
+        let (response_tx, response_rx) = oneshot::channel();
+
+        self.tx
+            .send(TaskMessage::Start {
+                id: Some(task_id),
+                command: command.clone(),
+                description,
+                remote_connection: remote_connection.clone(),
+                timeout,
+                response_tx,
+            })
+            .map_err(|_| TaskError::ManagerShutdown)?;
+
+        let task_id = response_rx
+            .await
+            .map_err(|_| TaskError::ManagerShutdown)??;
+
+        // Wait for the task to start and get its status
+        tokio::time::sleep(START_TASK_WAIT_TIME).await;
+
+        let task_info = self
+            .get_task_details(task_id.clone())
+            .await
+            .map_err(|_| TaskError::ManagerShutdown)?
+            .ok_or_else(|| TaskError::TaskNotFound(task_id.clone()))?;
+
+        // If the task failed or was cancelled during start, return an error
+        if matches!(task_info.status, TaskStatus::Failed | TaskStatus::Cancelled) {
+            return Err(TaskError::TaskFailedOnStart(
+                task_info
+                    .output
+                    .unwrap_or_else(|| "Unknown reason".to_string()),
+            ));
+        }
+
+        // Return the task info with updated status
+        Ok(task_info)
+    }
+
     pub async fn cancel_task(&self, id: TaskId) -> Result<TaskInfo, TaskError> {
         // Get the task info before cancelling
         let task_info = self

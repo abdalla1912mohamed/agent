@@ -345,6 +345,15 @@ pub struct LLMInput {
     /// Custom headers to pass to the inference provider
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<std::collections::HashMap<String, String>>,
+    /// Parent session ID for subagent telemetry correlation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<String>,
+    /// Task ID for subagent telemetry correlation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
+    /// Telemetry metadata to include in OTLP spans
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telemetry_metadata: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug)]
@@ -357,6 +366,12 @@ pub struct LLMStreamInput {
     pub provider_options: Option<LLMProviderOptions>,
     /// Custom headers to pass to the inference provider
     pub headers: Option<std::collections::HashMap<String, String>>,
+    /// Parent session ID for subagent telemetry correlation
+    pub parent_session_id: Option<String>,
+    /// Task ID for subagent telemetry correlation
+    pub task_id: Option<String>,
+    /// Telemetry metadata to include in OTLP spans
+    pub telemetry_metadata: Option<std::collections::HashMap<String, String>>,
 }
 
 impl From<&LLMStreamInput> for LLMInput {
@@ -368,6 +383,9 @@ impl From<&LLMStreamInput> for LLMInput {
             tools: value.tools.clone(),
             provider_options: value.provider_options.clone(),
             headers: value.headers.clone(),
+            parent_session_id: value.parent_session_id.clone(),
+            task_id: value.task_id.clone(),
+            telemetry_metadata: value.telemetry_metadata.clone(),
         }
     }
 }

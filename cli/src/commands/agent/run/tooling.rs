@@ -40,6 +40,7 @@ pub async fn run_tool_call(
     cancel_rx: Option<tokio::sync::broadcast::Receiver<()>>,
     session_id: Option<Uuid>,
     model_id: Option<String>,
+    profile_name: Option<String>,
 ) -> Result<Option<CallToolResult>, String> {
     let tool_name = &tool_call.function.name;
     let tool_id = &tool_call.id;
@@ -81,6 +82,12 @@ pub async fn run_tool_call(
             }
             if let Some(model_id) = model_id {
                 meta.insert("model_id".to_string(), serde_json::Value::String(model_id));
+            }
+            if let Some(profile_name) = profile_name {
+                meta.insert(
+                    "profile_name".to_string(),
+                    serde_json::Value::String(profile_name),
+                );
             }
             meta
         });

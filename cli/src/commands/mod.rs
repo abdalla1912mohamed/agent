@@ -551,8 +551,9 @@ impl Commands {
                 };
                 // Start ACP agent
                 let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+                let profile_name = config.profile_name.clone();
                 let agent =
-                    match crate::commands::acp::StakpakAcpAgent::new(config, tx, system_prompt)
+                    match crate::commands::acp::StakpakAcpAgent::new(config, tx, system_prompt, Some(profile_name))
                         .await
                     {
                         Ok(agent) => agent,

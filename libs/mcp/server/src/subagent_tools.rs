@@ -8,6 +8,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use serde_json::json;
+use stakpak_shared::helper::generate_simple_id;
 use stakpak_shared::local_store::LocalStore;
 use tracing::error;
 use uuid::Uuid;
@@ -172,7 +173,11 @@ The subagent runs asynchronously. Use get_task_details to monitor progress."
         }
 
         let session_id = self.get_session_id(&ctx);
+        let profile_name = self.get_profile_name(&ctx);
         let max_steps = max_steps.unwrap_or(30);
+
+        // Pre-generate task_id for telemetry correlation
+        let task_id = generate_simple_id(6);
 
         let model = if let Some(serde_json::Value::String(model_id)) = ctx.meta.get("model_id") {
             if model_id.contains("claude-opus-4-6") {
@@ -197,6 +202,8 @@ The subagent runs asynchronously. Use get_task_details to monitor progress."
             max_steps,
             enable_sandbox,
             session_id.as_deref(),
+            profile_name.as_deref(),
+            &task_id,
         ) {
             Ok(command) => command,
             Err(e) => {
@@ -215,7 +222,7 @@ The subagent runs asynchronously. Use get_task_details to monitor progress."
         };
         let task_info = match self
             .get_task_manager()
-            .start_task(subagent_command, Some(task_description), None, None)
+            .start_task_with_id(task_id.clone(), subagent_command, Some(task_description), None, None)
             .await
         {
             Ok(task_info) => task_info,
@@ -408,7 +415,9 @@ NOTES:
         model: &str,
         max_steps: usize,
         enable_sandbox: bool,
-        session_id: Option<&str>,
+        parent_session_id: Option<&str>,
+        profile_name: Option<&str>,
+        task_id: &str,
     ) -> Result<String, McpError> {
         // Combine instruction and context into the prompt
         let full_prompt = match context {
@@ -423,7 +432,7 @@ NOTES:
 
         // Write prompt to file
         let prompt_filename = format!("prompt_{}.txt", Uuid::new_v4());
-        let prompt_subpath = match session_id {
+        let prompt_subpath = match parent_session_id {
             Some(sid) => Path::new(sid)
                 .join("subagents")
                 .join(&prompt_filename)
@@ -454,7 +463,14 @@ NOTES:
         };
 
         // Build the stakpak command arguments
-        let mut args = vec![exe_for_command.clone(), "-a".to_string()];
+        let mut args = vec![exe_for_command.clone()];
+
+        // Add profile flag FIRST (before -a) for proper CLI parsing
+        if let Some(profile) = profile_name {
+            args.extend(["--profile".to_string(), profile.to_string()]);
+        }
+
+        args.push("-a".to_string());
 
         // --pause-on-approval only when NOT in sandbox mode
         if !enable_sandbox {
@@ -470,6 +486,20 @@ NOTES:
             max_steps.to_string(),
             "--model".to_string(),
             model.to_string(),
+        ]);
+
+        // Add parent session ID for telemetry correlation
+        if let Some(parent_sid) = parent_session_id {
+            args.extend([
+                "--parent-session-id".to_string(),
+                parent_sid.to_string(),
+            ]);
+        }
+
+        // Add task ID for telemetry correlation
+        args.extend([
+            "--task-id".to_string(),
+            task_id.to_string(),
         ]);
 
         // Add tool flags

@@ -91,6 +91,9 @@ define_hook!(
             tools: llm_tools,
             provider_options: None,
             headers: None,
+            parent_session_id: ctx.state.parent_session_id.clone(),
+            task_id: ctx.state.task_id.clone(),
+            telemetry_metadata: None,
         });
 
         Ok(HookAction::Continue)
